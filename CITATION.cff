@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "Please cite the research monograph for the study and this record for the public disclosure and proposed standards response."
+title: "The 3DS Oracle: Disclosure Record and Proposed Anti-Oracle Profile for Browser-Mediated EMV 3-D Secure"
+version: 1.5.0
+date-released: 2026-11-11
+abstract: "Narrative public disclosure and technology-neutral standards proposal for browser-mediated EMV 3-D Secure. A bounded EMV 3DS 2.2.0 study in one browser-channel integration found repeatable input-correlated response classes across seven ACS/card-range cohorts: six at the first Requestor-visible lookup and one after the initial CReq. Comparison-input issuance was not independently established. The record does not claim account existence, payment usability, deployment prevalence, internal component attribution, or financial impact. It provides a claim ledger, source crosswalk, threat model, proposed anti-oracle requirements, synthetic-only conformance framework, ownership matrix, and release controls. It contains no attack tooling, account data, live endpoint recipes, reusable transaction material, or hosted operational source code. Reviewed third-party archive links are retained only with stage-specific evidence limits."
+authors:
+  - family-names: Faisal
+    given-names: Wasif
+    affiliation: "BRAC University, Dhaka, Bangladesh"
+    orcid: "https://orcid.org/0000-0003-0696-5623"
+  - family-names: Dibya
+    given-names: Suprava Saha
+    affiliation: "BRAC University, Dhaka, Bangladesh"
+    orcid: "https://orcid.org/0009-0007-9607-925X"
+license: CC-BY-4.0
+repository-code: "https://github.com/cswasif/3ds-oracle"
+url: "https://github.com/cswasif/3ds-oracle"
+keywords:
+  - EMV 3-D Secure
+  - browser security boundary
+  - input-correlated response class
+  - authentication BIN attack
+  - payment security
+  - protocol security
+  - vulnerability disclosure
+preferred-citation:
+  type: report
+  title: "The 3DS Oracle: Disclosure Record and Proposed Anti-Oracle Profile for Browser-Mediated EMV 3-D Secure"
+  version: 1.5.0
+  date-released: 2026-11-11

@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "release_type": "narrative_disclosure_and_standards_proposal",
+  "evidence_bundle_complete": false,
+  "notice": "No row-level traffic, account data, tokens, transaction identifiers, raw protocol artifacts, or operational reproduction material is published in this repository.",
+  "published_evidence": [],
+  "required_fields_for_future_artifacts": [
+    "path", "sha256", "bytes", "media_type", "capture_date", "claim_ids",
+    "evidence_class", "redaction_review_status", "reviewer_count", "rights_status",
+    "limitations", "supersedes"
+  ]
+}

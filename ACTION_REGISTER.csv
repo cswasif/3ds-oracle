@@ -1,0 +1,8 @@
+action_id,owner,requested_deliverable,related_requirements,status,status_basis,last_updated,closure_artifact
+ARQ-01,EMVCo,Versioned channel model and future closure-profile work item,"AR-01;AR-02;AR-04;AR-08",requested,public disclosure,2026-11-11,
+ARQ-02,Payment schemes and DS operators,Synthetic-fixture and distributed-campaign profile,"AR-04;AR-05;AR-08",requested,public disclosure,2026-11-11,
+ARQ-03,PCI SSC,Composed-flow assessment guidance,"AR-01;AR-02;AR-03;AR-04;AR-05;AR-06;AR-07;AR-08",requested,public disclosure,2026-11-11,
+ARQ-04,3DS Server providers and integrators,Versioned conformance report,"AR-01;AR-03;AR-04;AR-07",requested,public disclosure,2026-11-11,
+ARQ-05,Gateways and Requestors,Deployment attestation with synthetic tests,"AR-01;AR-03;AR-05;AR-07",requested,public disclosure,2026-11-11,
+ARQ-06,ACS operators and issuers,First-CReq UI OOB equivalence report,"AR-04;AR-05;AR-06;AR-08",requested,public disclosure,2026-11-11,
+ARQ-07,Acquirers and authorization systems,Authentication-to-authorization correlation report,AR-07,requested,public disclosure,2026-11-11,

@@ -18,6 +18,7 @@ source documents.
 | Same | [0027]--[0035] | Feature data, snapshot data, transaction/BIN/merchant context, and trained-model examples. | That a specific deployed detector uses every example feature. |
 | Same | [0036]--[0044]; claims 1--20 | Score/threshold decision, notification, AReq/ARes signaling, pausing, and blocking as disclosed responses to abnormal network traffic. | That a Reason-98-related client response proves this application or its model was used. |
 | G+D Netcetera *Tech Tribe* Podcast | Episode S11E13, [*"Fraud Alert: Inside a Massive BIN Attack"*](https://youtu.be/IfHsmJHPOcs) | Practitioner incident confirmation of live botnets flooding 3DS rails (>10 tx/s) and abusing 3DS pre-authorization status codes for bank reconnaissance. | Formal mathematical proof of specification invariants across all untracked issuers. |
+| OpenWay WAY4 ACS Advisory / [CVE-2021-35060](https://gist.github.com/exviry/9527ce2ccdc0718d3ffd1e3ca62cf304) | `/way4acs/enroll` endpoint | Historical precedent for pre-authorization card enumeration via observable response differences (CWE-209/CWE-203). | Architectural flaw across multi-party 3DS rails; isolated to single vendor software. |
 
 ## Citation policy
 

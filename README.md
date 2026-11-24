@@ -46,7 +46,7 @@ The payment industry historically assumed attackers only use public checkouts to
 
 ## Historical Precedent & Systemic Scope
 
-In 2021, an isolated implementation flaw (**CVE-2021-35060**) demonstrated that an OpenWay WAY4 ACS card enrollment endpoint (`/way4acs/enroll`) could be abused as an **enumeration oracle** due to differing error messages.
+In 2021, an isolated implementation flaw (**[CVE-2021-35060](https://gist.github.com/exviry/9527ce2ccdc0718d3ffd1e3ca62cf304)**, NVD [Detail](https://nvd.nist.gov/vuln/detail/CVE-2021-35060)) demonstrated that an OpenWay WAY4 ACS card enrollment endpoint (`/way4acs/enroll`) could be abused as an **enumeration oracle** due to differing error messages.
 
 **Our research establishes that this vulnerability is not an isolated implementation bug in one vendor's web page, but a systemic architectural flaw embedded within the global EMV 3DS Core Specification itself.** It spans the entire multi-party payment rail:
 $$\text{Merchant Checkout} \longrightarrow \text{Payment Gateway} \longrightarrow \text{Scheme Directory Server (e.g., Visa, Mastercard)} \longrightarrow \text{Issuer ACS}$$

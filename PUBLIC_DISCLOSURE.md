@@ -32,7 +32,7 @@ The payment industry has historically treated card testing as a volumetric "cred
 
 ## Historical Precedent & Scope
 
-In 2021, an isolated implementation flaw (**CVE-2021-35060**) established that an OpenWay WAY4 ACS card enrollment endpoint (`/way4acs/enroll`) allowed unauthenticated attackers to discover whether a card existed in the system due to observable error message differences (CWE-209).
+In 2021, an isolated implementation flaw (**[CVE-2021-35060](https://gist.github.com/exviry/9527ce2ccdc0718d3ffd1e3ca62cf304)**, NVD [Detail](https://nvd.nist.gov/vuln/detail/CVE-2021-35060)) established that an OpenWay WAY4 ACS card enrollment endpoint (`/way4acs/enroll`) allowed unauthenticated attackers to discover whether a card existed in the system due to observable error message differences (CWE-209).
 
 **This disclosure demonstrates that the vulnerability is not an isolated vendor implementation bug, but an architectural flaw embedded within the global EMV 3DS Core Specification itself.** The oracle spans the multi-party payment rail:
 $$\text{Merchant Checkout} \longrightarrow \text{Payment Gateway} \longrightarrow \text{Scheme Directory Server (e.g., Visa, Mastercard)} \longrightarrow \text{Issuer ACS}$$

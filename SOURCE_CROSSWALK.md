@@ -17,6 +17,7 @@ source documents.
 | US 2026/0134429 A1, *Systems and Methods for Use in Identifying Feature Data Consistent with Abnormal Network Traffic* | [0005], [0013]--[0015] | The disclosed threat model: estimated or guessed credentials and authentication responses used as signals. | Deployment, incidence, or effectiveness of the disclosed method. |
 | Same | [0027]--[0035] | Feature data, snapshot data, transaction/BIN/merchant context, and trained-model examples. | That a specific deployed detector uses every example feature. |
 | Same | [0036]--[0044]; claims 1--20 | Score/threshold decision, notification, AReq/ARes signaling, pausing, and blocking as disclosed responses to abnormal network traffic. | That a Reason-98-related client response proves this application or its model was used. |
+| G+D Netcetera *Tech Tribe* Podcast | Episode S11E13, [*"Fraud Alert: Inside a Massive BIN Attack"*](https://youtu.be/IfHsmJHPOcs) | Practitioner incident confirmation of live botnets flooding 3DS rails (>10 tx/s) and abusing 3DS pre-authorization status codes for bank reconnaissance. | Formal mathematical proof of specification invariants across all untracked issuers. |
 
 ## Citation policy
 

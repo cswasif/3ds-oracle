@@ -2,10 +2,10 @@
 
 ## A proposed anti-oracle profile for browser-mediated EMV 3DS
 
-This is a research proposal for EMVCo, payment schemes, PCI SSC, 3DS Server
-providers, Directory Servers (DSs), ACS operators, gateways, acquirers,
-issuers, and requestors. It is **not** a statement of adopted EMVCo, scheme,
-or PCI requirements.
+This is a research proposal for EMVCo, payment schemes (e.g., Visa, Mastercard),
+PCI SSC, 3DS Server providers, Directory Servers (DSs), ACS operators, gateways,
+acquirers, issuers, and requestors. It is **not** a statement of adopted EMVCo,
+scheme, or PCI requirements.
 
 The proposal separates two goals that are often conflated:
 
@@ -14,12 +14,13 @@ The proposal separates two goals that are often conflated:
    channels, and detect abnormal network traffic.
 2. **Future architectural closure:** before any attacker-triggerable,
    account-dependent operation, verify independent authority for the exact
-   account and operation, or return a single hidden-state-independent terminal
-   observation without performing that operation.
+   account and operation, or return a single response-uniform terminal
+   observation (remediating CWE-204) without querying internal ledger state
+   (remediating CWE-696).
 
 Containment reduces practical exploitability. It cannot prove closure when the
-public protocol state machine itself branches on hidden state before adequate
-query authorization.
+public protocol state machine itself branches on internal account state before
+adequate caller authorization.
 
 See [THREAT_MODEL.md](THREAT_MODEL.md) and [SOURCE_CROSSWALK.md](SOURCE_CROSSWALK.md)
 for terms, boundaries, and source limits.
@@ -38,8 +39,8 @@ frictionless result or later fresh challenge proof:
   selected.
 
 The Core does not require an arbitrary external caller to initiate these steps
-or receive raw outcomes. An observable classifier requires the conditions in
-[THREAT_MODEL.md](THREAT_MODEL.md).
+or receive raw outcomes. An observable account enumeration oracle (CWE-204)
+requires the conditions in [THREAT_MODEL.md](THREAT_MODEL.md).
 
 The 2026 Mastercard patent application uses the terms **estimated or guessed
 credential**, **authentication BIN attack**, **abnormal network traffic**,
@@ -82,7 +83,7 @@ normative language. Parameters are profile values, not universal constants.
 A context preserves submitted fields. It MUST NOT by itself establish authority
 over a newly supplied account.
 
-### AR-02: exact-query authority before hidden-state work
+### AR-02: proof-first caller authorization before ledger queries (remediating CWE-696)
 
 1. Before an attacker-triggerable account, enrollment, range, route, Method,
    ACS, or online-status operation, the enforcing component MUST verify an
@@ -119,31 +120,35 @@ over a newly supplied account.
 4. Browser values, JavaScript booleans, callback parameters, or correlation
    identifiers MUST NOT independently authorize a transition.
 
-### AR-04: browser-visible allowlists
+### AR-04: browser-visible allowlists and error sanitization (remediating CWE-204 and CWE-209)
 
 For every supported version and browser-visible state, the profile MUST publish
 a machine-readable allowlist of fields, values, headers, content types,
 redirects, templates, error classes, and dynamic correlation fields. Anything
 not allowlisted fails certification.
 
-Authoritative reasons, account-state semantics, detector state, ECI,
-Authentication Value/CAVV, liability data, and raw ARes/RReq objects MUST be
-restricted to authenticated server or operational channels unless a profile
-explicitly proves their browser release is necessary and non-sensitive.
+Authoritative reasons (e.g., Reason 98, Reason 08), internal account-state
+semantics (e.g., whether an account exists, is active, or expired), detector
+state, ECI, Authentication Value/CAVV, liability data, and raw ARes/RReq
+objects MUST be restricted to authenticated server or operational channels
+unless a profile explicitly proves their browser release is necessary and
+non-sensitive (CWE-209 mitigation).
 
-### AR-05: unadmitted-query reject equivalence
+### AR-05: unadmitted-query response uniformity and constant-time processing (remediating CWE-204 and CWE-208)
 
 1. An expired, malformed, replayed, consumed, wrong-state, wrong-audience,
    or context-mismatched unadmitted query MUST use one declared terminal
-   browser-visible reject profile.
+   browser-visible reject profile (CWE-204 mitigation: Response Uniformity).
 2. The profile MUST define exact categorical output, headers, content type,
    redirect graph, body schema, retry text, size bucket, deadline, and timing
    test method.
 3. Detailed causes MUST stay on authenticated server or operational channels.
 4. Random delay does not satisfy this requirement. Deterministic semantic and
-   structural differences must be removed before timing equivalence is tested.
+   structural differences must be removed, and constant-time or dummy
+   processing must be enforced so directory lookup drops do not leak timing
+   channels (CWE-208 / CWE-385 mitigation).
 
-### AR-06: telemetry provenance
+### AR-06: telemetry provenance and decoupled enforcement (remediating CWE-602)
 
 Telemetry MUST use a closed state set including `bound_success`,
 `explicit_failure`, `timeout`, `unavailable`, `not_attempted`, and
@@ -152,8 +157,8 @@ authoritative producer, issue/completion times, and provenance class. Missing,
 stale, contradictory, client-only, or context-mismatched telemetry MUST NOT be
 upgraded to success.
 
-Telemetry can inform risk. It does not establish exact-query authority or make
-a hidden-state-dependent response safe to release.
+Telemetry can inform risk. It does not establish caller query authority or make
+an account-dependent response safe to release.
 
 ### AR-07: authoritative-result confinement and authorization linkage
 

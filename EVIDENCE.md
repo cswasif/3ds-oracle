@@ -25,7 +25,7 @@ control received HTML defining a credential-choice/OTP interface. The client
 inspected the returned HTML as text and did not render it, submit data, complete
 authentication, or attempt authorization.
 
-This establishes repeatable input-correlated response classes in the tested
+This establishes repeatable observable response discrepancies (CWE-204) in the tested
 integration. The comparison inputs had unknown issuance status. The observation
 does not establish account validity, payment usability, internal component
 attribution, notification behavior in other flows, prevalence, or impact.
@@ -65,9 +65,9 @@ reproducing their code:
 
 | Artifact | Archive | What the public source establishes | Limit |
 |---|---|---|---|
-| Telegram-bot Braintree 3DS/VBV handler | https://perma.cc/2QL8-9KKR | A membership-gated workflow intended to obtain Braintree authorization, submit caller-provided card data, invoke lookup, classify returned status, and select rotating SOCKS5 routing. | Does not establish present execution, endpoint availability, accuracy, volume, third-party use, or prevalence. |
+| Telegram-bot Braintree 3DS/VBV handler | https://perma.cc/2QL8-9KKR | A membership-gated workflow intended to obtain Braintree authorization, submit caller-provided card data across major networks (e.g., Visa, Mastercard), invoke lookup, classify returned status, and select rotating SOCKS5 routing. | Does not establish present execution, endpoint availability, accuracy, volume, third-party use, or prevalence. |
 | Adyen-labeled Telegram checker | https://perma.cc/Z7E3-KWYT | Repository snapshot presenting a Telegram card-checking bot with an Adyen-labeled gateway. | Repository metadata alone does not establish the exact downstream response. |
-| `3dali.php` Adyen-labeled gateway | https://perma.cc/PBA6-AUG5 | Source labels the gate `3D Adyen`, selects `app.saleor.adyen`, submits encrypted payment and browser/risk data, and classifies Saleor `AUTHORIZATION_ACTION_REQUIRED` as `3D Card`. Saleor documents that its Adyen app returns this state when an Adyen response contains a storefront action; Adyen defines `ChallengeShopper` as one specific 3DS shopper-interaction result. | Direct evidence of an implemented Adyen/Saleor 3DS action-required classifier. The file does not preserve or parse the underlying Adyen `resultCode` or action type, so it cannot distinguish `ChallengeShopper`, `IdentifyShopper`, `RedirectShopper`, or another provider action. |
+| `3dali.php` Adyen-labeled gateway | https://perma.cc/PBA6-AUG5 | Source labels the gate `3D Adyen`, selects `app.saleor.adyen`, submits encrypted payment and browser/risk data, and classifies Saleor `AUTHORIZATION_ACTION_REQUIRED` as `3D Card`. Saleor documents that its Adyen app returns this state when an Adyen response contains a storefront action; Adyen defines `ChallengeShopper` as one specific 3DS shopper-interaction result. | Direct evidence of an implemented Adyen/Saleor 3DS action-required account-checking tool. The file does not preserve or parse the underlying Adyen `resultCode` or action type, so it cannot distinguish `ChallengeShopper`, `IdentifyShopper`, `RedirectShopper`, or another provider action. |
 | BraintreeCHK | https://perma.cc/A25F-XA7V | Public packaging and advertised Braintree VBV/3DS card-checking functionality. | Advertisement/repository snapshot; exact runtime behavior was not independently measured. |
 | MeduzaV3 | https://perma.cc/KV3L-7ZQG | Public packaging of broader card-checking functionality. | Does not establish use against the study cohorts or current operation. |
 | MeduzaV3 promotion | https://perma.cc/9VUB-A9BE | Public promotion and distribution interest. | Promotional material, not technical validation. |
@@ -75,7 +75,7 @@ reproducing their code:
 | Commercial 3DS Lookup API listing | https://perma.cc/G84X-8L43 | Publicly advertised 3DS support, issuer metadata, and risk-scoring functionality. | Advertisement only; backend and accuracy not verified. |
 
 The Telegram handler is direct public evidence of an implemented lookup-stage
-classification workflow, rather than an advertisement alone. This conclusion
+account checking workflow (CWE-204), rather than an advertisement alone. This conclusion
 is stage-specific: it does not show public use of the separate initial-CReq
 differential observed in the controlled study. It also does not establish
 current operation, execution success, accuracy, volume, or prevalence.
@@ -85,7 +85,7 @@ current operation, execution success, accuracy, volume, or prevalence.
 The documented 24-path core corpus and separate 16-path extension are ecosystem
 interface mapping. They show where documentation describes branch or progression
 output. They are not tested deployments, vulnerability prevalence, or evidence
-that an unauthorized caller can use a classifier.
+that an unauthorized caller can operate an account enumeration oracle (CWE-204).
 
 ## Future aggregate evidence
 

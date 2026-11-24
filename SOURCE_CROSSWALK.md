@@ -22,10 +22,10 @@ source documents.
 
 ## Citation policy
 
-Use the patent's terms — **estimated or guessed credential**, **authentication
+Use the patent's terms (specifically: **estimated or guessed credential**, **authentication
 BIN attack**, **abnormal network traffic**, **feature data**, **snapshot data**,
 **trained model**, **probability score**, **threshold**, **notify**, **pause**,
-and **block** — only when describing the patent's disclosed threat and
+and **block**) only when describing the patent's disclosed threat and
 detection architecture. Use EMV role names elsewhere.
 
 All public claims should link to [CLAIMS.md](CLAIMS.md) and this crosswalk.

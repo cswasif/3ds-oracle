@@ -22,7 +22,7 @@ Because this extraction occurs prior to payment clearing:
 
 ## Threat Model: Generative Discovery vs. Credential Stuffing
 
-The payment industry has historically treated card testing as a volumetric "credential stuffing" problem—assuming attackers only blast pre-existing stolen card dumps from darknet breaches against checkouts in noisy, high-volume sweeps.
+The payment industry has historically treated card testing as a volumetric "credential stuffing" problem, assuming attackers only blast pre-existing stolen card dumps from darknet breaches against checkouts in noisy, high-volume sweeps.
 
 **Our findings establish a more severe threat model: Generative Account Discovery.**
 - Attackers do not require stolen card databases.

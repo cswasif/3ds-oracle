@@ -99,7 +99,7 @@ and commercial interest:
 - **Industry Incident Telemetry (G+D Netcetera Podcast):** In their *Tech Tribe* podcast (Episode S11E13, [*"Fraud Alert: Inside a Massive BIN Attack"*](https://youtu.be/IfHsmJHPOcs), Nov 18, 2025), leading 3DS provider Netcetera documented live botnets flooding 3DS rails at sustained rates >10 tx/s, doubling bank transaction volumes within seconds and abusing 3DS pre-authorization status codes as a reconnaissance tool to map bank defenses.
 
 The evidence is stage-specific. The Telegram handler directly demonstrates an
-implemented Braintree lookup classifier; it does not show that the separate
+implemented Braintree lookup account checker; it does not show that the separate
 initial-CReq differential was used publicly. Public source material does not,
 by itself, establish current operation, successful execution against a specific
 target, accuracy, scale, third-party use, or prevalence. The repository links

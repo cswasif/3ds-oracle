@@ -4,7 +4,8 @@ Run this checklist before tagging, depositing, or widely announcing a release.
 
 - [ ] Every public assertion maps to [CLAIMS.md](CLAIMS.md).
 - [ ] Every standards or patent assertion maps to [SOURCE_CROSSWALK.md](SOURCE_CROSSWALK.md).
-- [ ] Live evidence uses `input-correlated`, not account-validity language,
+- [ ] Live evidence uses observable response discrepancy (CWE-204) or
+      input-correlated response differences, avoiding unfounded account-validity claims,
       unless synthetic ground truth is independently recorded.
 - [ ] Every organization outcome is marked researcher-reported unless a
       reviewed acknowledgment is included.

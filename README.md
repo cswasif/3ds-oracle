@@ -1,205 +1,226 @@
 # The 3DS Oracle
 
-> **Public disclosure record and standards proposal.** This repository explains
-> an architectural flaw in browser-based EMV 3-D Secure (3DS) and proposes
-> technical fixes. It contains no attack tooling, real card data, live endpoint
-> recipes, reusable tokens, or raw network captures.
+> **Public disclosure record and standards proposal.** This repository documents
+> a pre-authorization response discrepancy vulnerability across browser-mediated
+> EMV 3-D Secure (3DS) integrations and the multi-party protocol boundary, along
+> with proposed fixes. It contains no attack tooling, real card data, live
+> endpoint recipes, reusable tokens, or raw network captures.
 
 - **Research monograph:** [arXiv:2610.32206](https://arxiv.org/abs/2610.32206)
 - **Short formal statement:** [PUBLIC_DISCLOSURE.md](PUBLIC_DISCLOSURE.md)
-- **Quick navigation:** [Repository Map](#repository-structure) | [Claims Ledger](CLAIMS.md) | [Corrections](CORRECTIONS.md)
+- **Claims and limits:** [CLAIMS.md](CLAIMS.md) | **Corrections:** [CORRECTIONS.md](CORRECTIONS.md)
 
-## Start Here: What Is This Vulnerability? (Plain English)
+## Start Here: What Is the Vulnerability? (Plain English)
 
-When you pay online with a card, the merchant often runs a background check called
-**EMV 3-D Secure (3DS)** *before* asking your bank to charge any money. That
-check passes through three organizations:
+When you pay online with a card, the merchant often runs a background
+authentication check called **EMV 3-D Secure (3DS)** *before* asking your bank to
+charge any money ([C-01](CLAIMS.md)). Under EMV 3DS Core v2.3.1.1, messages flow
+through this chain:
 
 ```text
-Caller / Checkout  -->  Payment Gateway  -->  Card Network (DS)  -->  Issuing Bank (ACS)
-   (unauthenticated)      (forwards query)     (checks card range)    (checks card account)
+Buyer / Caller  -->  Merchant & 3DS Server  -->  Card Scheme DS  -->  Issuing Bank (ACS)
+  (browser/API)       (checkout integration)      (range routing)      (account handling)
 ```
 
-In a normal payment, this step decides whether the purchase can go through silently
-("frictionless") or needs an extra verification step such as a one-time passcode
-("challenge") ([C-01](CLAIMS.md)).
+Normally, this step decides whether the purchase can complete silently
+("frictionless") or needs extra verification such as a one-time passcode
+("challenge"), after which payment authorization happens separately
+([C-01](CLAIMS.md)).
 
-### The Core Mistake
+### Where the Problem Starts
 
-Because this check happens **before any financial charge** and **without proof
-that the caller holds the card** (`CWE-696: Incorrect Behavior Order`), an automated
-script at a public checkout can grab a normal public checkout token, enter any
-16-digit card number with dummy expiration dates and CVVs (the 3DS lookup message
-does not require CVV validation, under EMVCo Core Table A.1 and Req. 105), and
-read how the payment system reacts ([C-02](CLAIMS.md)).
+Two facts meet here:
 
-Instead of returning one uniform response to an unverified caller, the system can
-return **different client-visible answers depending on the card number tested**
-(`CWE-204: Observable Response Discrepancy`) ([C-03](CLAIMS.md)):
+1. **The protocol inspects the card number before payment clearing and without
+   universal holder proof (`CWE-696`):** Under EMV 3DS Core v2.3.1.1, the network
+   and issuer steps evaluate card-range eligibility (Reqs. 97 and 98) and account
+   authentication availability (Req. 105) before any challenge completes and
+   before payment authorization ([C-02](CLAIMS.md)). In Core Table A.1, the
+   account number (`acctNumber`, 13 to 19 digits) is mandatory (`AReq = R`),
+   while expiration date (`cardExpiryDate`) and security code (`cardSecurityCode`)
+   are conditional (`AReq = C`, governed by Directory Server rules). Meanwhile,
+   the Core specification explicitly leaves how the merchant/gateway ("3DS
+   Requestor Environment") admits callers and projects response fields back to
+   the browser implementation-defined ([SOURCE_CROSSWALK.md](SOURCE_CROSSWALK.md)).
+2. **A permissive client integration reflects those outcomes to an unverified
+   caller (`CWE-204`):** In the browser integration we tested (which allowed a
+   public checkout authorization credential to be replayed from a standalone
+   client and did not block modified/placeholder CVV2 or expiry values at lookup),
+   the client received distinguishable outcomes depending on the card number
+   submitted ([C-03](CLAIMS.md)):
+   - **Lookup-stage separation (6 of 7 tested cohorts):** Researcher-owned
+     issued anchor cards received integration outcomes mapping to *"challenge
+     required"*, *"frictionless approved"* (returning non-empty `CAVV` and `ECI`
+     fields), *"expired card"* (Reason `05`), or *"not enrolled"* (Reason `13`),
+     whereas adjacent same-range comparison candidates returned Reason `08`
+     (*"No card record"* / *"No account"*) ([C-03](CLAIMS.md),
+     [C-03a](CLAIMS.md)).
+   - **Challenge-initiation separation (Cohort G):** One cohort returned a
+     uniform *"challenge required"* status (`transStatus = C`) at lookup for every
+     tested input. However, when the caller posted the initial challenge request
+     (`CReq`) *without entering any OTP*, the issued control returned an
+     interactive bank verification page (displaying OTP options and masked
+     email/phone hints), whereas adjacent comparison candidates returned an
+     HTML auto-submit response carrying `Final CRes` with `transStatus = N`
+     ("transaction denied") ([C-04](CLAIMS.md)).
 
-1. **Separated at the first lookup reply (6 of 7 tested cohorts):**
-   In six tested bank/network cohorts, a known real card triggered outcomes such
-   as *"challenge required"*, *"frictionless approved"* (even returning
-   cryptographic authentication fields such as `CAVV` and `ECI`), *"expired card"*
-   (Reason `05`), or *"not enrolled"* (Reason `13`), whereas adjacent test
-   numbers sharing the same bank prefix returned *"no card record"* (Reason `08`)
-   ([C-03](CLAIMS.md), [C-03a](CLAIMS.md)).
-2. **Separated at the next step even when lookup looked identical (Cohort G):**
-   One cohort tried to mask the lookup reply by answering *"challenge required"*
-   (`transStatus = C`) for every tested card number. However, when the script
-   posted the very first challenge-screen request (`CReq`) *without entering any
-   OTP*, the real card returned an interactive bank verification webpage (which
-   even displayed masked email and phone hints), while every adjacent candidate
-   returned a hidden auto-submitting denial (`transStatus = N`)
-   ([C-04](CLAIMS.md)).
+**Important spec caveat ([COR-003](CORRECTIONS.md)):** The Core specification does
+**not** require raw lookup responses to be exposed to arbitrary unverified callers,
+nor does it establish that every 3DS deployment is exploitable. An observable
+oracle requires both the protocol's pre-proof ordering (`C-02`) and reachable,
+non-uniform client integration behavior ([THREAT_MODEL.md](THREAT_MODEL.md)).
 
-### Why Transaction IDs Also Reveal Routing
+### Transaction Identifiers as Routing Context
 
-Under EMVCo protocol rules (Req. 104 and Req. 411):
-- When the **card network Directory Server** answers on the bank's behalf (such as
-  blocking an unassigned card range with Reasons `80` or `87`, dropping a
-  suspected sweep with Reason `98`, or issuing an attempted stand-in response as
-  seen in Cohort E), the Directory Server sets the two transaction identifiers
-  equal (`acsTransID == dsTransID`).
-- When the request passes the range check and is routed onward to an **issuing
-  bank's Access Control Server** (which happened for both real cards and Reason
-  `08` "no card record" candidates inside a bank's participating BIN range in our
-  study), the two identifiers are distinct (`acsTransID != dsTransID`).
+Under EMVCo Core v2.3.1.1:
+- **Issuer-generated ID (Req. 104):** When a request reaches an Access Control
+  Server (ACS), the ACS generates its own `acsTransID`, so `acsTransID != dsTransID`.
+- **DS stand-in ID (Req. 411, browser flow):** When a Directory Server creates the
+  `ARes` on the ACS's behalf (for example, returning an Attempt response `transStatus = A`),
+  it sets `acsTransID == dsTransID`.
 
-Combined with status and reason codes, these fields help an outside caller infer
-whether a query stopped at the card network or reached an issuing bank
-([SOURCE_CROSSWALK.md](SOURCE_CROSSWALK.md)), though identifier inequality alone
-is routing-provenance evidence rather than a guarantee of active issuance.
+Under black-box testing without backend network traces, matching identifiers in
+Cohort E (`authenticate_attempt_successful`) are structurally consistent with a
+DS-created response, while distinct identifiers across Cohorts A to D, F, and G
+(including Reason `08` comparison inputs routed past DS range checks) are
+structurally consistent with ACS processing ([SOURCE_CROSSWALK.md](SOURCE_CROSSWALK.md)).
+Identifier inequality alone is routing-provenance context, not proof that an
+account exists or can complete payment.
 
-### Why Alerts and Fraud Systems Often Miss It
+### Why Probes Can Escape Payment Alerts
 
-- **No payment charge occurs:** Because the probe stops at 3DS lookup (or after
-  loading the initial challenge HTML without selecting an OTP method), no
-  clearing-stage financial authorization (`ISO 8583`) reaches the bank. Merchant
-  processing fees do not trigger, and bank post-authorization fraud engines are
-  blind to upstream lookup probes.
-- **Lookup timeouts are internal to the network:** EMVCo rules do not specify an
-  SMS or push alert to the cardholder on a lookup-only request or on the
-  30-second initial challenge timeout (Req. 220 and 221 specify an internal
-  `RReq` timeout report from the bank ACS to the Directory Server). On our
-  monitored test channels, no SMS, email, OTP, or push notification was observed
-  during these bounded probes ([COR-002](CORRECTIONS.md)); independent bank alert
-  systems and out-of-band PSD2 push flows were not instrumented and can behave
-  differently.
+- **No payment authorization (`ISO 8583`) is submitted:** Stopping at lookup (or
+  at initial `CReq` retrieval without entering an OTP) avoids financial clearing
+  attempts, so downstream post-authorization fraud rules do not observe these
+  queries as payment declines. *(Because merchant billing records were not
+  inspected, we make no claim that upstream 3DS processing itself is free.)*
+- **No cardholder alert was observed in bounded tests ([COR-002](CORRECTIONS.md)):**
+  EMVCo Core specifies no cardholder SMS or mobile app push notification on
+  lookup-only probes or on the Req. 220/221 30-second initial-`CReq` timeout
+  (which notifies the DS and Requestor server internally via `RReq` with Reason
+  `14` and Cancel Indicator `05`). On researcher-controlled recipient channels,
+  no SMS, email, OTP, or push reached test devices during these bounded HTML-text
+  observations. Independent bank alert systems and out-of-band PSD2 push flows
+  were not instrumented and may differ.
 
-### Why This Matters: Beyond Stolen Card Dumps
+### Why This Matters: Beyond Stolen Card Lists
 
-The payment industry has often assumed attackers only test already-stolen card
-lists purchased after data breaches. Because pre-authorization 3DS lookup accepts
-candidate 16-digit numbers without real CVVs or payments, attackers can also use
-these responses to screen algorithmically generated candidates within a target
-bank prefix (BIN) ([C-05](CLAIMS.md)). Separate public carding tools show
-automated scripts already parsing 3DS pre-authorization statuses at checkout
-([C-07](CLAIMS.md)).
+Where a client-facing checkout leaks lookup or initial-`CReq` distinctions
+without holder proof or strict secondary-field checks, an attacker does not rely
+solely on already-stolen card dumps. Bounded probing with generated Luhn-valid
+candidates can act as a pre-clearing screening channel ([C-05](CLAIMS.md)).
+Separately reviewed public tooling confirms automated scripts already parse 3DS
+pre-authorization responses ([C-07](CLAIMS.md)).
 
 ## What the Bounded Study Proved (And Its Strict Limits)
 
-To keep testing safe and verifiable, the primary controlled evaluation tested
-**one** browser-channel checkout integration (PayPal Braintree and
-CardinalCommerce on a researcher-controlled checkout) across **seven** Visa and
-Mastercard bank/card-range cohorts (`A` to `G`). Each of 7 researcher-owned
-issued cards was paired with 3 adjacent Luhn-valid comparison numbers from the
-same range (28 inputs total, each tested across 5 fresh sessions = **140 lookup
-observations**, with zero payment authorizations) ([C-03](CLAIMS.md),
-[EVIDENCE.md](EVIDENCE.md)).
+The primary controlled study evaluated **one** browser-channel checkout
+integration (PayPal Braintree and CardinalCommerce on a researcher-controlled
+checkout) across **seven** Visa and Mastercard cohorts (`A` to `G`). Seven
+researcher-owned issued cards were each paired with three adjacent same-range
+Luhn-valid comparison candidates (28 unique inputs, each tested across five
+fresh off-context HTTP sessions = **140 lookup observations**, zero payment
+authorizations) ([C-03](CLAIMS.md), [EVIDENCE.md](EVIDENCE.md)):
 
-- **Six cohorts (`A` to `F`)** separated the real card from adjacent candidates at
-  the first lookup reply.
+- **Six cohorts (`A` to `F`)** separated the issued control from adjacent
+  comparison candidates at the first lookup reply.
 - **One cohort (`G`)** returned uniform `transStatus = C` at lookup, then
-  separated immediately at the first `CReq` step (`interactive OTP HTML` vs.
-  auto-submit `CRes` with `transStatus = N`) ([C-04](CLAIMS.md)).
-- **Selected frictionless and attempted responses** exposed non-empty `CAVV`,
-  `ECI`, `paresStatus`, and liability indicators in client-visible output before
-  any payment clearing ([C-03a](CLAIMS.md)).
+  separated at the initial `CReq` post (interactive OTP HTML vs. auto-submit
+  `Final CRes` `N`) ([C-04](CLAIMS.md)).
+- **Selected challenge-free responses** exposed non-empty `CAVV`, `ECI`,
+  `paresStatus`, authentication identifiers, and liability indicators before
+  authorization ([C-03a](CLAIMS.md)). These client-visible artifacts were not
+  independently validated or submitted for clearing and do not prove cryptogram
+  validity or payment usability.
 
-**Important scope limits:** The adjacent comparison candidates did not have
-independently verified issuance status, repetitions measured within-input
-stability rather than population rate, and the study does not estimate universal
-prevalence, internal component attribution without backend logs, or downstream
-payment usability ([CLAIMS.md](CLAIMS.md)). Separately reported qualitative
-checks on Stripe and Adyen test integrations, and a frozen documentation audit
-covering 24 core 3DS integration paths (plus a 16-path extension), provide
-cross-ecosystem context and are not pooled with the 7-cohort study
-([EVIDENCE.md](EVIDENCE.md)).
+**Explicit boundaries:** Adjacent comparison inputs did not have independently
+established issuance status, repeated sessions measured within-input stability
+rather than population rates, and findings do not establish universal exposure,
+component attribution without internal logs, or financial impact
+([CLAIMS.md](CLAIMS.md)). Narrower qualitative checks on Stripe and Adyen test
+integrations, and a frozen documentation audit covering 24 core 3DS integration
+paths (plus a separate 16-path extension), provide cross-ecosystem context and
+are not pooled with the primary study ([EVIDENCE.md](EVIDENCE.md)).
 
-## Why Existing Defenses Fall Short (And Why It Remains Unfixed)
+## Why Current Controls Leave Gaps
 
-1. **IP rate limiting is bypassed:** Archived carding tools pair lookup probes with
-   rotating residential SOCKS5 proxies, spreading queries across ordinary home IP
-   addresses (`CWE-307`) ([C-07](CLAIMS.md)).
-2. **Bank fraud scoring watches the wrong stage:** Clearing-stage fraud engines
-   monitor financial authorizations, not pre-authorization 3DS lookups.
-3. **In-band attack signals help bots tune evasion (`US 2026/0134429 A1`):**
-   Mastercard's published patent application describes Directory Server scoring to
-   flag an "authentication BIN attack" and communicate risk codes such as Reason
-   `98` ([C-06](CLAIMS.md)). Exploratory log reviews observed Reason `98` during
-   repeated same-range Mastercard lookups (without backend traces proving which
-   component generated it). When gateways copy diagnostic reason codes directly
-   into readable client JSON (`CWE-209`), callers see immediately when a rule
-   triggered and can adjust proxy rotation ([MITIGATIONS.md](MITIGATIONS.md)).
-4. **Superficial patches relocate the oracle:** Hiding lookup errors without fixing
-   pre-proof execution order moves the leak to the initial `CReq`, payload size,
-   or network response timing (`CWE-208`) ([C-08](CLAIMS.md)).
+1. **IP throttling faces proxy rotation:** Archived tools include optional
+   rotating SOCKS5 routing (`CWE-307`) ([C-07](CLAIMS.md)), and an exploratory A/B
+   comparison on our tested device-data path observed fewer single-source blocks
+   under distributed residential egress ([SCOPE_AND_ETHICS.md](SCOPE_AND_ETHICS.md)).
+   That exploratory check does not establish evasion of every production detector.
+2. **Clearing fraud systems operate downstream:** Post-3DS `ISO 8583` scoring
+   monitors financial authorizations, whereas pre-authorization lookups sit
+   upstream unless governed by dedicated 3DS-tier controls.
+3. **Client-visible scheme signals can act as feedback (`US 2026/0134429 A1`):**
+   Mastercard's patent application discloses Directory Server scoring for
+   "authentication BIN attacks" and network/participant signaling including score
+   `998` and Reason `98` ([C-06](CLAIMS.md), [SOURCE_CROSSWALK.md](SOURCE_CROSSWALK.md)).
+   Exploratory client log reviews observed Reason `98` during repeated same-range
+   Mastercard lookups (without backend traces confirming which component emitted
+   it). Reflecting diagnostic codes in browser-readable output (`CWE-209`) lets
+   automated callers observe blocks and adjust pacing or proxy rotation
+   ([MITIGATIONS.md](MITIGATIONS.md)).
+4. **Lookup normalization relocates leaks:** Masking initial lookup status text
+   without addressing pre-proof execution order shifts observable distinctions
+   into initial `CReq` output (`C-04`), response size, or execution latency
+   (`CWE-208`) ([C-08](CLAIMS.md)).
 
-**The ecosystem trap:** Merchants rely on PCI DSS SAQ A iframe outsourcing, which
-leaves gateway-hosted 3DS lookup endpoints outside merchant audits; PCI 3DS Data
-Matrix v1.3 omits PANs, `transStatusReason`, transaction IDs, and removed
-`CAVV` from protected 3DS elements; EMVCo certification tests syntax using
-non-Luhn test ranges; and sovereign vulnerability coordinators (`CISA VINCE-NT
-CASE#121099`, `CERT/CC VRF#26-05-CJVGG`) determined multi-party protocol specs
-fall outside single-vendor CVE scope while EMVCo has no public VDP
-([TIMELINE.md](TIMELINE.md)). Consequently, gateways and networks process lookup
-volume while issuing banks and cardholders bear downstream reissuance and fraud
-exposure.
+**Multi-party governance context:** Because the 3DS Requestor Environment, gateway,
+DS, and ACS sit in different administrative domains and no single component owns
+end-to-end query authority, sovereign coordinators (`CISA VINCE-NT CASE#121099`,
+`CERT/CC VRF#26-05-CJVGG`) determined (as reported by the researchers) that
+multi-party specification architecture falls outside single-vendor CVE
+coordination, while our inquiry to EMVCo (`#20260827-17621D`) was processed under
+general non-confidential Terms of Use ([TIMELINE.md](TIMELINE.md)). Broader
+compliance and security-economics analysis of liability shifting and certification
+boundaries is detailed in the companion monograph
+([arXiv:2610.32206](https://arxiv.org/abs/2610.32206)).
 
 ## Public Operational Evidence
 
-Reviewed third-party archives confirm that automated lookup-stage classification
-has been built into public tooling, though these snapshots establish available
-code workflows rather than prevalence, accuracy, or live operational volume
-([C-07](CLAIMS.md), [EVIDENCE.md](EVIDENCE.md)):
+Reviewed third-party archives show that lookup-stage classification has been
+implemented in public scripts, though source availability alone does not
+establish live operation, accuracy, volume, or prevalence against specific
+targets ([C-07](CLAIMS.md), [EVIDENCE.md](EVIDENCE.md)):
 
 - [Archived Telegram Braintree 3DS handler](https://perma.cc/2QL8-9KKR): obtains
   merchant-scoped Braintree authorization from a public checkout, submits card
-  data, invokes 3DS lookup, classifies returned status, and routes via SOCKS5.
+  credentials, invokes 3DS lookup, classifies returned status, and supports
+  SOCKS5 routing.
 - [Adyen-labeled Telegram checker](https://perma.cc/Z7E3-KWYT) and
-  [`3dali.php`](https://perma.cc/PBA6-AUG5): submits encrypted checkout data
-  and classifies Saleor `AUTHORIZATION_ACTION_REQUIRED` as an active "3D Card"
-  (limits documented in [SOURCE_CROSSWALK.md](SOURCE_CROSSWALK.md)).
+  [`3dali.php`](https://perma.cc/PBA6-AUG5): submits encrypted payment data and
+  classifies Saleor `AUTHORIZATION_ACTION_REQUIRED` as `3D Card` (scope limits in
+  [SOURCE_CROSSWALK.md](SOURCE_CROSSWALK.md)).
 - [BraintreeCHK](https://perma.cc/A25F-XA7V),
   [MeduzaV3](https://perma.cc/KV3L-7ZQG) ([promo](https://perma.cc/9VUB-A9BE)),
   [pubstripe](https://perma.cc/9VSU-SGYN), and a [commercial 3DS Lookup API
   listing](https://perma.cc/G84X-8L43).
-- **Industry report:** In G+D Netcetera's *Tech Tribe* podcast (Episode S11E13,
-  [*"Fraud Alert: Inside a Massive BIN Attack"*](https://youtu.be/IfHsmJHPOcs),
-  Nov 18, 2025), practitioners described live botnets probing 3DS rails above 10
-  transactions per second and abusing pre-authorization responses for bank
+- **Practitioner report:** In G+D Netcetera's *Tech Tribe* podcast (Episode
+  S11E13, [*"Fraud Alert: Inside a Massive BIN Attack"*](https://youtu.be/IfHsmJHPOcs),
+  Nov. 18, 2025), practitioners reported live 3DS-rail velocity bursts exceeding
+  10 transactions per second and abuse of pre-authorization responses for
   reconnaissance.
 - **Historical precedent:** [CVE-2021-35060](https://nvd.nist.gov/vuln/detail/CVE-2021-35060)
   ([advisory](https://gist.github.com/exviry/9527ce2ccdc0718d3ffd1e3ca62cf304))
-  showed an earlier enrollment-endpoint enumeration oracle in one vendor's ACS
-  software (`CWE-209`). Our work shows that protocol-boundary leakage spans the
-  multi-party specification flow, not just one vendor URL.
+  documented an earlier ACS enrollment-endpoint enumeration bug (`CWE-209`). Our
+  work examines composed cross-boundary exposure along the specification flow
+  rather than one vendor URL.
 
 ## How To Fix It
 
-Permanent remediation requires separating immediate risk reduction from true
-architectural closure ([C-08](CLAIMS.md), [CONSORTIUM_REFORM.md](CONSORTIUM_REFORM.md)):
+Effective remediation separates tactical containment from long-term architectural
+closure ([C-08](CLAIMS.md), [CONSORTIUM_REFORM.md](CONSORTIUM_REFORM.md)):
 
-1. **Immediate Containment (`AR-01`, `AR-03` to `AR-07`, `AR-14`):** Lock checkout
-   context server-side, enforce single-use state transitions, strip internal
-   reason codes (`08`, `98`), `CAVV`, and `ECI` from browser/API outputs
-   (`CWE-209`), normalize unadmitted responses with constant-time handling
-   (`CWE-204`, `CWE-208`), and keep ML anomaly flags backend-only (`CWE-307`).
-2. **Architectural Closure (`AR-02`, `AR-08`):** Require verified query authority
-   bound to the exact account and transaction *before* triggering card-range
-   routing or issuer ledger lookups (`CWE-696`), or return one identical,
-   state-independent response when authority is absent.
+1. **Immediate Containment (`AR-01`, `AR-03` to `AR-07`, `AR-14`):** Bind
+   checkout context server-side, make transitions single-use, remove internal
+   reason codes (`05`, `08`, `13`, `98`), `CAVV`, and `ECI` from browser-visible
+   responses (`CWE-209`), return uniform constant-time error responses (`CWE-204`,
+   `CWE-208`), and keep anomaly detection flags backend-only (`CWE-307`).
+2. **Architectural Closure (`AR-02`, `AR-08`):** Require independently verified
+   query authority bound to the exact account and transaction *before* executing
+   card-range routing or issuer ledger evaluation (`CWE-696`), or return one
+   uniform, state-independent terminal response when authority is absent.
 
 ## Repository Structure
 
@@ -208,7 +229,7 @@ architectural closure ([C-08](CLAIMS.md), [CONSORTIUM_REFORM.md](CONSORTIUM_REFO
 | [PUBLIC_DISCLOSURE.md](PUBLIC_DISCLOSURE.md) | Canonical short formal disclosure statement |
 | [CLAIMS.md](CLAIMS.md) | Claim ledger distinguishing proof, bounded data, and proposals |
 | [THREAT_MODEL.md](THREAT_MODEL.md) | Channel model, CWE mapping, and security objective |
-| [SOURCE_CROSSWALK.md](SOURCE_CROSSWALK.md) | EMVCo, PCI, CVE, and patent reference limits |
+| [SOURCE_CROSSWALK.md](SOURCE_CROSSWALK.md) | EMVCo, CVE, Adyen/Saleor, and patent reference limits |
 | [CONSORTIUM_REFORM.md](CONSORTIUM_REFORM.md) | Proposed Anti-Oracle Requirements (`AR-01` to `AR-08`, `AR-14`) |
 | [CONFORMANCE_FRAMEWORK.md](CONFORMANCE_FRAMEWORK.md) | Synthetic-account test matrix for verification |
 | [ACTION_REQUEST.md](ACTION_REQUEST.md) | Concrete deliverables requested from ecosystem actors |
@@ -223,12 +244,16 @@ architectural closure ([C-08](CLAIMS.md), [CONSORTIUM_REFORM.md](CONSORTIUM_REFO
 
 ## Coordinated Disclosure
 
-All tracker outcomes are researcher-reported and documented in [TIMELINE.md](TIMELINE.md):
+All tracker entries and outcomes are researcher-reported and documented in
+[TIMELINE.md](TIMELINE.md):
 - **CISA CVD / VINCE-NT:** `CASE#121099` (prior `CCASE0209885`)
 - **CERT/CC:** `VRF#26-05-CJVGG`, `VRF#26-08-XWHPS`
 - **EMVCo:** Inquiry `#20260827-17621D`
 - **MITRE CVE Program:** Tracking reference `2026835`
-- **Vendor / Scheme Disclosures:** PayPal HackerOne `#3673424`, GitHub `GHSA-xjwr-jwm2-wvjr`, Visa HackerOne `#3978615`, American Express HackerOne `#3979021`, Mastercard Bugcrowd `8d647a18`, and direct Visa/Mastercard/Amex security team submissions.
+- **Vendor / Scheme Disclosures:** PayPal HackerOne `#3673424`, GitHub
+  `GHSA-xjwr-jwm2-wvjr`, Visa HackerOne `#3978615`, American Express HackerOne
+  `#3979021`, Mastercard Bugcrowd `8d647a18`, and direct Visa, Mastercard, and
+  American Express security contacts.
 
 ## Living Record, Ethics, and Citation
 

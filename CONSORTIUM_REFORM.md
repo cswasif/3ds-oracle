@@ -33,7 +33,7 @@ exchange, while a selected Browser challenge requires client flow-control and
 correlation state. The following operations may precede either an initial
 frictionless result or later fresh challenge proof:
 - Req. 80 may retrieve range-specific protocol versions and 3DS Method data;
-- Reqs. 97--98 perform range and ACS-capability checks;
+- Reqs. 97 and 98 perform range and ACS-capability checks;
 - Req. 105 evaluates whether authentication is available; and
 - Browser challenge continuation uses correlation state after a challenge is
   selected.
@@ -186,7 +186,7 @@ route, or challenge difference.
    MUST be authenticated and committed to the context. Omission, alteration,
    or ignoring of the selected protection MUST cause generic client failure and
    a specific trusted-channel event. Silent fallback is prohibited.
-3. Current-version deployments MUST apply AR-01, AR-03--AR-07 as containment.
+3. Current-version deployments MUST apply AR-01 and AR-03 through AR-07 as containment.
 4. A future profile claiming closure MUST add an account-independent transition
    before range-derived Method work and must make AR-02 mandatory. An optional
    AReq extension alone cannot gate work that has already happened; Req. 210

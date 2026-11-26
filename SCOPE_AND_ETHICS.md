@@ -10,7 +10,7 @@ It does not contain:
 - card-number lists, issuer range maps, or account-narrowing PAN fragments;
 - client tokens, authorization fingerprints, CAVVs, transaction IDs, or reusable session material;
 - merchant, issuer, or ACS endpoint recipes;
-- reviewed archive links used to document third-party operationalization evidence; or
+- operational source code, endpoints, or step-by-step workflows copied from reviewed third-party archives;
 - scripts or requests that interact with live 3DS systems; or
 - unredacted private correspondence or third-party personal data.
 
